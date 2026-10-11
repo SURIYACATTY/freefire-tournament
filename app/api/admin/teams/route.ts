@@ -1,0 +1,6 @@
+import { NextResponse } from 'next/server';
+import { isAdminRequest } from '@/lib/admin-session';
+import { getAdminSupabase } from '@/lib/supabase-server';
+export const runtime='nodejs'; export const dynamic='force-dynamic';
+export async function GET(){if(!(await isAdminRequest()))return NextResponse.json({error:'Please log in as admin.'},{status:401});const db=getAdminSupabase();const [{data:teams,error:e1},{data:matches,error:e2}]=await Promise.all([db.from('teams').select('*').order('created_at',{ascending:false}),db.from('matches').select('*').order('created_at',{ascending:false})]);if(e1||e2)return NextResponse.json({error:e1?.message||e2?.message||'Database error'},{status:500});return NextResponse.json({teams,matches})}
+export async function PATCH(req:Request){if(!(await isAdminRequest()))return NextResponse.json({error:'Please log in as admin.'},{status:401});try{const {id,status}=await req.json();if(typeof id!=='string'||!['pending','approved','rejected'].includes(status))return NextResponse.json({error:'Invalid ID or status.'},{status:400});const {data,error}=await getAdminSupabase().from('teams').update({status}).eq('id',id).select('id').single();if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({ok:true,team:data})}catch{return NextResponse.json({error:'Invalid request.'},{status:400})}}
